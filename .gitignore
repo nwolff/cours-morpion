@@ -4,3 +4,6 @@
 
 # Mac
 .DS_Store
+
+# Coding assistants
+.claude/settings.local.json
