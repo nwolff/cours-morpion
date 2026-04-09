@@ -20,8 +20,8 @@ class ConseilMinimax:
     arbre: NoeudMinimax
 
 
-def obtenir_meilleur_coup(plateau: list[str], joueur: str, avec_profondeur: bool = False) -> ConseilMinimax:
-    racine = construire_arbre(plateau, joueur, avec_profondeur)
+def obtenir_meilleur_coup(plateau: list[str], joueur: str) -> ConseilMinimax:
+    racine = construire_arbre(plateau, joueur)
     meilleur_enfant = max(racine.enfants, key=lambda n: n.score)
 
     lignes = ["Positions analysées :"]
@@ -39,9 +39,9 @@ def obtenir_meilleur_coup(plateau: list[str], joueur: str, avec_profondeur: bool
     )
 
 
-def construire_arbre(plateau: list[str], joueur: str, avec_profondeur: bool = False) -> NoeudMinimax:
+def construire_arbre(plateau: list[str], joueur: str) -> NoeudMinimax:
     racine = NoeudMinimax(plateau=plateau[:], position_jouee=None, score=0, est_max=True)
-    racine.score = _construire_sous_arbre(racine, plateau[:], True, joueur, 0, avec_profondeur)
+    racine.score = _construire_sous_arbre(racine, plateau[:], True, joueur)
     return racine
 
 
@@ -50,14 +50,12 @@ def _construire_sous_arbre(
     p: list[str],
     est_max: bool,
     joueur: str,
-    profondeur: int,
-    avec_profondeur: bool,
 ) -> int:
     adv = "O" if joueur == "X" else "X"
     if moteur.verifier_victoire(p, joueur):
-        return 10 - profondeur if avec_profondeur else 1
+        return 1
     if moteur.verifier_victoire(p, adv):
-        return profondeur - 10 if avec_profondeur else -1
+        return -1
     if " " not in p:
         return 0
 
@@ -68,7 +66,7 @@ def _construire_sous_arbre(
             p[i] = joueur_courant
             enfant = NoeudMinimax(plateau=p[:], position_jouee=i, score=0, est_max=not est_max)
             noeud.enfants.append(enfant)
-            score = _construire_sous_arbre(enfant, p[:], not est_max, joueur, profondeur + 1, avec_profondeur)
+            score = _construire_sous_arbre(enfant, p[:], not est_max, joueur)
             enfant.score = score
             scores.append(score)
             p[i] = " "

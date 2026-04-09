@@ -23,7 +23,7 @@
       text-align: center; vertical-align: middle;
       border: 1px solid #999;
     }
-    .played { background-color: #f8d7da; color: #842029; font-weight: bold; }
+    .played { background-color: #dee2e6; }
     .score-victoire { color: #198754; font-weight: bold; }
     .score-nul      { color: #fd7e14; }
     .score-defaite  { color: #dc3545; }
@@ -71,17 +71,6 @@
       </div>
 
       <form method="post" action="/recommencer" class="mt-2">
-        <div class="mb-2">
-          <label class="form-label fw-semibold">Algorithme :</label><br>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="avec_profondeur" id="algo-base" value="0" {% if not avec_profondeur %}checked{% endif %}>
-            <label class="form-check-label" for="algo-base">Minimax de base</label>
-          </div>
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="avec_profondeur" id="algo-rapide" value="1" {% if avec_profondeur %}checked{% endif %}>
-            <label class="form-check-label" for="algo-rapide">Minimax rapide</label>
-          </div>
-        </div>
         <button class="btn btn-secondary">Recommencer</button>
       </form>
     </div>
@@ -95,10 +84,11 @@
         <thead><tr><th>Position</th><th>Résultat</th></tr></thead>
         <tbody>
           {% for enfant in enfants_tries %}
-          {% set label = {1: 'victoire', 0: 'nul', -1: 'défaite'}[enfant.score] %}
+          {% set label = 'victoire' if enfant.score > 0 else ('nul' if enfant.score == 0 else 'défaite') %}
+          {% set css = 'victoire' if enfant.score > 0 else ('nul' if enfant.score == 0 else 'defaite') %}
           <tr {% if loop.first %}class="table-primary fw-bold"{% endif %}>
             <td>{{ enfant.position_jouee }}</td>
-            <td class="score-{{ label }}">{{ label }}{% if loop.first %} ← optimal{% endif %}</td>
+            <td class="score-{{ css }}">{{ label }}{% if loop.first %} ← optimal{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -118,16 +108,21 @@
   {# On ne peut pas faire de BFS en Jinja, donc on pré-calcule les niveaux côté serveur #}
   <!-- voir les niveaux rendus ci-dessous -->
 
-  {% for niveau in arbre_niveaux %}
+  {% for niveau in arbre_niveaux[1:] %}
+  {% set terminaux = niveau | rejectattr('enfants') | list %}
+  {% set non_terminaux = niveau | selectattr('enfants') | list %}
+  {% set nb_slots_non_terminaux = [100 - (terminaux | length), 0] | max %}
+  {% set noeuds_affiches = terminaux[:100] + non_terminaux[:nb_slots_non_terminaux] %}
+  {% set nb_masques = (niveau | length) - (noeuds_affiches | length) %}
   <div class="mb-3">
     <p class="text-muted small mb-1">
-      Niveau {{ loop.index0 }} —
-      {% if niveau[0].est_max %}O maximise{% else %}X minimise{% endif %}
+      Niveau {{ loop.index }} —
+      {% if not niveau[0].est_max %}Coups de O{% else %}Coups de X{% endif %}
     </p>
     <div class="tree-level">
-      {% for noeud in niveau %}
+      {% for noeud in noeuds_affiches %}
       {% set est_optimal = loop.first and loop.index0 == 0 %}
-      <div class="board-node {% if not noeud.enfants and noeud.score == 1 %}border border-success{% elif not noeud.enfants and noeud.score == -1 %}border border-danger{% endif %}">
+      <div class="board-node {% if not noeud.enfants and noeud.score > 0 %}border border-success{% elif not noeud.enfants and noeud.score < 0 %}border border-danger{% endif %}">
         <table>
           {% for rangee in range(3) %}
           <tr>
@@ -141,11 +136,15 @@
           {% endfor %}
         </table>
         {% if not noeud.enfants %}
-        {% set label = {1: 'victoire', 0: 'nul', -1: 'défaite'}[noeud.score] %}
-        <div class="score-{{ label }} text-center">{{ label }}</div>
+        {% set label = 'victoire' if noeud.score > 0 else ('nul' if noeud.score == 0 else 'défaite') %}
+        {% set css = 'victoire' if noeud.score > 0 else ('nul' if noeud.score == 0 else 'defaite') %}
+        <div class="score-{{ css }} text-center">{{ label }}</div>
         {% endif %}
       </div>
       {% endfor %}
+      {% if nb_masques > 0 %}
+      <p class="text-muted small mt-1">… {{ nb_masques }} position(s) masquée(s)</p>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
