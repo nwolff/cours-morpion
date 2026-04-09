@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Morpion — Humain vs Minimax</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .cell {
+      width: 80px; height: 80px;
+      font-size: 2rem; font-weight: bold;
+    }
+    .tree-level { overflow-x: auto; }
+    .board-node {
+      display: inline-block;
+      margin: 0 8px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      vertical-align: top;
+    }
+    .board-node table { border-collapse: collapse; }
+    .board-node td {
+      width: 28px; height: 28px;
+      text-align: center; vertical-align: middle;
+      border: 1px solid #999;
+    }
+    .played { background-color: #f8d7da; color: #842029; font-weight: bold; }
+    .score-victoire { color: #198754; font-weight: bold; }
+    .score-nul      { color: #fd7e14; }
+    .score-defaite  { color: #dc3545; }
+    .optimal { outline: 2px solid #0d6efd; }
+  </style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <h1 class="mb-4">Morpion — Humain (X) vs Minimax (O)</h1>
+
+  <div class="d-flex gap-5 align-items-start flex-wrap">
+
+    <!-- Plateau de jeu -->
+    <div>
+      <table>
+        {% for rangee in range(3) %}
+        <tr>
+          {% for col in range(3) %}
+          {% set idx = rangee * 3 + col %}
+          <td>
+            {% if jeu.plateau[idx] == ' ' and not jeu.gagnant and ' ' in jeu.plateau and jeu.joueur_actuel == 'X' %}
+            <form method="post" action="/jouer/{{ idx }}">
+              <button class="cell btn btn-outline-secondary">{{ idx }}</button>
+            </form>
+            {% else %}
+            <button class="cell btn {% if jeu.plateau[idx] == 'X' %}btn-primary{% elif jeu.plateau[idx] == 'O' %}btn-danger{% else %}btn-outline-secondary{% endif %}" disabled>
+              {{ jeu.plateau[idx] if jeu.plateau[idx] != ' ' else '' }}
+            </button>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+
+      <!-- Statut -->
+      <div class="mt-3">
+        {% if jeu.gagnant %}
+          <div class="alert alert-success">Le joueur {{ jeu.gagnant }} a gagné !</div>
+        {% elif ' ' not in jeu.plateau %}
+          <div class="alert alert-warning">Match nul !</div>
+        {% else %}
+          <p class="text-muted">Tour de {{ jeu.joueur_actuel }}</p>
+        {% endif %}
+      </div>
+
+      <form method="post" action="/recommencer" class="mt-2">
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Algorithme :</label><br>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="avec_profondeur" id="algo-base" value="0" {% if not avec_profondeur %}checked{% endif %}>
+            <label class="form-check-label" for="algo-base">Minimax de base</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="avec_profondeur" id="algo-rapide" value="1" {% if avec_profondeur %}checked{% endif %}>
+            <label class="form-check-label" for="algo-rapide">Minimax rapide</label>
+          </div>
+        </div>
+        <button class="btn btn-secondary">Recommencer</button>
+      </form>
+    </div>
+
+    <!-- Explication du dernier coup -->
+    {% if arbre %}
+    <div>
+      <h5>Analyse du dernier coup de O</h5>
+      {% set enfants_tries = arbre.enfants | sort(attribute='score') | reverse %}
+      <table class="table table-sm table-bordered w-auto">
+        <thead><tr><th>Position</th><th>Résultat</th></tr></thead>
+        <tbody>
+          {% for enfant in enfants_tries %}
+          {% set label = {1: 'victoire', 0: 'nul', -1: 'défaite'}[enfant.score] %}
+          <tr {% if loop.first %}class="table-primary fw-bold"{% endif %}>
+            <td>{{ enfant.position_jouee }}</td>
+            <td class="score-{{ label }}">{{ label }}{% if loop.first %} ← optimal{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Arbre Minimax -->
+  {% if arbre %}
+  <hr class="my-4">
+  <h4>Arbre Minimax</h4>
+
+  {% set niveaux = [] %}
+  {% set _ = niveaux.append([arbre]) %}
+  {# On ne peut pas faire de BFS en Jinja, donc on pré-calcule les niveaux côté serveur #}
+  <!-- voir les niveaux rendus ci-dessous -->
+
+  {% for niveau in arbre_niveaux %}
+  <div class="mb-3">
+    <p class="text-muted small mb-1">
+      Niveau {{ loop.index0 }} —
+      {% if niveau[0].est_max %}O maximise{% else %}X minimise{% endif %}
+    </p>
+    <div class="tree-level">
+      {% for noeud in niveau %}
+      {% set est_optimal = loop.first and loop.index0 == 0 %}
+      <div class="board-node {% if not noeud.enfants and noeud.score == 1 %}border border-success{% elif not noeud.enfants and noeud.score == -1 %}border border-danger{% endif %}">
+        <table>
+          {% for rangee in range(3) %}
+          <tr>
+            {% for col in range(3) %}
+            {% set idx = rangee * 3 + col %}
+            <td class="{% if idx == noeud.position_jouee %}played{% endif %}">
+              {{ noeud.plateau[idx] if noeud.plateau[idx] != ' ' else '·' }}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </table>
+        {% if not noeud.enfants %}
+        {% set label = {1: 'victoire', 0: 'nul', -1: 'défaite'}[noeud.score] %}
+        <div class="score-{{ label }} text-center">{{ label }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</div>
+</body>
+</html>
