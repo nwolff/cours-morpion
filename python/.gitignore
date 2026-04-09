@@ -1,0 +1,25 @@
+# uv / Virtual Environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Distribution / Build
+dist/
+build/
+*.egg-info/
+
+# Environments (if you use .env files)
+.env
+.venv
+
+# IDEs
+.vscode/
+.idea/
+
+# Mac
+.DS_Store
