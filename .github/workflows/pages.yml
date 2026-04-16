@@ -33,6 +33,20 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Compute build metadata
+        id: meta
+        run: |
+          echo "short_sha=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "timestamp=$(TZ=Europe/Zurich date '+%Y-%m-%d %H:%M %Z')" >> $GITHUB_OUTPUT
+
+      - name: Inject build info into about.html
+        uses: cschleiden/replace-tokens@v1
+        with:
+          files: '["about.html"]'
+        env:
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+          TIMESTAMP: ${{ steps.meta.outputs.timestamp }}
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
